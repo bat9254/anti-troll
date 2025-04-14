@@ -35,7 +35,7 @@
 
     // --- Constants ---
     const SCRIPT_NAME = "Ekşi Author Filter (Mini)";
-    const AUTHOR_LIST_URL = "https://raw.githubusercontent.com/unless7146/stardust3903/main/173732994.txt"; // !!! REPLACE !!!
+    const AUTHOR_LIST_URL = "https://raw.githubusercontent.com/bat9254/troll-list/refs/heads/main/list.txt"; // !!! REPLACE !!!
     const UPDATE_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h
     const NETWORK_TIMEOUT_MS = 20000; // 20s
     const LOG_PREFIX = `[${SCRIPT_NAME}]`;
