@@ -1,5 +1,5 @@
-# Ekşi Sözlük Troll Filtresi UserScript
-
+---
+# Ekşi Sözlük Troll Filtresi (UserScript)
 
 
 | Öncesi                                | Sonrası                                  |
@@ -7,27 +7,38 @@
 | ![](https://i.imgur.com/cbTkjLj.jpeg) | ![](https://files.catbox.moe/0fbkng.png) |
 
 
-## Ne İşe Yarar?
+## Ne Yapar?
 
-Bu UserScript, Ekşi Sözlük'teki troll ve kalitesiz içerik kirliliğini temizlemek için tasarlanmıştır. Belirlenmiş troll/istenmeyen yazar listesindeki kişilerin entry'lerini otomatik olarak engeller (gizler veya daraltır)
 
-1.  **Kara Liste:** Script, engellenecek yazarları içeren güncel listeyi `raw.githubusercontent.com` adresindeki merkezi bir dosyadan çeker.
-2.  **Engelleme:** Ekşi Sözlük başlıklarında gezerken, script her entry'yi kontrol eder. Yazar kara listedeyse, entry ya tamamen **yok edilir** ya da içeriği gizlenip yerine **"Engellendi - Yine de göster"** uyarısı konulur.
+Bu script, Ekşi Sözlük’teki troll ve kalitesiz içerikleri otomatik olarak gizler.
+
+
+- **Kara Liste:** Güncel yazar listesi GitHub’dan alınır.  
+- **Filtreleme:** Kara listedeki yazarların entry’leri gizlenir veya “Engellendi” uyarısıyla gösterilir.
+
 
 ## Kurulum
 
-1.  **UserScript Yöneticisi Şart:** Tarayıcınızda bir UserScript yöneticisi eklentisi (örneğin Tampermonkey, ViolentMonkey) kurulu olmalıdır.
-2.  **Script'i Yükle:** Script'i Greasy Fork'tan, GitHub'dan (kaynak url ile), veya manuel olarak kodu kopyalayıp yapıştırarak (otomatik güncelleme olmaz) kullanabilirsiniz.
-3. Greasy Fork: https://greasyfork.org/en/scripts/532430-anti-troll
-4. GitHub kaynak url: https://raw.githubusercontent.com/bat9254/anti-troll/refs/heads/main/anti-troll.js
-5.  **Kullanım:** Kurulum sonrası Ekşi Sözlük'e girdiğinizde script otomatik olarak **devreye girer** ve filtelemeye başlar.
+
+1. **UserScript eklentisi** (Tampermonkey vb.) kurulu olmalı.  
+2. Script’i şuradan yükleyin:  
+   - [Greasy Fork](https://greasyfork.org/en/scripts/532430-anti-troll)  
+   - [GitHub Kaynak](https://raw.githubusercontent.com/bat9254/anti-troll/refs/heads/main/anti-troll.js)  
+3. Kurulumdan sonra script otomatik çalışır.
+
+
 ## Gizlilik
 
-*  Script, engelleme listesini `raw.githubusercontent.com` adresindeki bir metin dosyasından alır. **Bu, dışarıyla TEK bağlantısıdır.**
-*  **BU SCRİPT KESİNLİKLE HİÇBİR VERİ TOPLAMAZ/TOPLAYAMAZ, GÖNDERMEZ/GÖNDEREMEZ** Tamamen yerel çalışır.
-## Katkı
+
+- Sadece GitHub’daki listeye bağlanır.  
+- **Hiçbir veri toplamaz veya göndermez.**
 
 
-## Uyarı
+## Katkı & Uyarı
 
-Yanlış negatifler olabilir listede eksik troller olabilir lütfen bunlar için https://github.com/unless7146/stardust3903/ reposuna katkı yapın. Listeye katkı yapan herkese çok ama çok teşekkür ederim. Ayrıca https://github.com/unless7146 'a katkıları için teşekkürler.
+
+- Eksik veya yanlış filtreler olabilir.  
+- Katkı için: [Troll Listesi GitHub](https://github.com/bat9254/troll-list/)  
+- Katkı yapan herkese teşekkürler!
+
+
