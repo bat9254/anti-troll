@@ -23,7 +23,6 @@ Bu script, Ekşi Sözlük’teki troll ve kalitesiz içerikleri otomatik olarak 
 1. **UserScript eklentisi** (Tampermonkey vb.) kurulu olmalı.  
 2. Script’i şuradan yükleyin:  
    - [Greasy Fork](https://greasyfork.org/en/scripts/532430-anti-troll)  
-   - [GitHub Kaynak](https://raw.githubusercontent.com/bat9254/anti-troll/refs/heads/main/anti-troll.js)  
 3. Kurulumdan sonra script otomatik çalışır.
 
 
