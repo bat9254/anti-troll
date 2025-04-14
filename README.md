@@ -38,7 +38,7 @@ Bu script, Ekşi Sözlük’teki troll ve kalitesiz içerikleri otomatik olarak 
 
 
 - Eksik veya yanlış filtreler olabilir.  
-- Katkı için: [Troll Listesi GitHub](https://github.com/bat9254/troll-list/)  
+- Katkı için:
+[Troll Listesi GitHub](https://github.com/bat9254/troll-list/)  
+[Userscript GitHub](https://github.com/bat9254/anti-troll/tree/main)
 - Katkı yapan herkese teşekkürler!
-
-
