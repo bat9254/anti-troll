@@ -1,4 +1,4 @@
-Bu konuda bir userscript yaptım kaynak listede ~1000 aktroll var (şimdiye kadarki en güncel ve kapsamlı liste) bütün her şey açık kaynak katkı yapabilirsiniz
+~1000 aktroll var (şimdiye kadarki en güncel ve kapsamlı liste) bütün her şey açık kaynak katkı yapabilirsiniz
 ---
 # Ekşi Sözlük Troll Filtresi (UserScript)
 
