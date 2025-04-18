@@ -1,6 +1,12 @@
 # Ekşi Sözlük Troll Filtresi (UserScript)
 
-*şimdiki listede ~2500 aktroll var (çaylaklar dahil) (şimdiye kadarki en güncel ve kapsamlı liste) bütün her şey açık kaynak katkı yapabilirsiniz*
+*şimdiki listede ~2800 aktroll var (çaylaklar dahil) (şimdiye kadarki en güncel ve kapsamlı liste) bütün her şey açık kaynak katkı yapabilirsiniz*
+
+hatalı olduğunu düşündüğünüz bir hesap için mesaj atabilir veya GitHub'dan issue açabilirsiniz
+
+!!!!
+bu listenin amacı akp yi savunanları engellemek değildir bu listenin amacı organize bir şekilde muhalefete karşı iftira, hakaret, karalama, yalan haber, manipülasyon yapan hesapları filtrelemektir
+!!!
 
 | Öncesi                                | Sonrası                                  |
 | ------------------------------------- | ---------------------------------------- |
