@@ -1,6 +1,6 @@
-~1000 aktroll var (şimdiye kadarki en güncel ve kapsamlı liste) bütün her şey açık kaynak katkı yapabilirsiniz
----
 # Ekşi Sözlük Troll Filtresi (UserScript)
+
+*şimdiki listede ~2500 aktroll var (çaylaklar dahil) (şimdiye kadarki en güncel ve kapsamlı liste) bütün her şey açık kaynak katkı yapabilirsiniz*
 
 | Öncesi                                | Sonrası                                  |
 | ------------------------------------- | ---------------------------------------- |
