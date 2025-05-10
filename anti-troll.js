@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Ekşi Author Filter
 // @namespace    http://tampermonkey.net/
-// @version      1.2
+// @version      1.2.1
 // @description  Filters entries from a remote list (hide/collapse) and adds profile page warnings for Ekşi Sözlük.
-// @author       @protono
+// @author       @protono (with community feedback)
 // @match        *://eksisozluk.com/*
 // @match        *://eksisozluk.com/
 // @match        *://eksisozluk.com/*--*
@@ -166,7 +166,6 @@
         }
     }, SAVE_COUNT_DEBOUNCE_MS);
 
-
     const fetchList = () => new Promise((resolve, reject) => {
         logger.debug(`Liste isteniyor: ${PRIMARY_LIST_URL}`);
         GM_xmlhttpRequest({
@@ -174,7 +173,11 @@
             url: PRIMARY_LIST_URL,
             timeout: NETWORK_TIMEOUT_MS,
             responseType: 'text',
-            headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' },
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            },
             onload: response => {
                 if (response.status >= 200 && response.status < 300) {
                     logger.debug(`Liste alındı (HTTP ${response.status}). Boyut: ${response.responseText?.length ?? 0} bytes.`);
@@ -200,7 +203,7 @@
 
     const parseAuthorList = (rawText) => {
         if (!rawText || typeof rawText !== 'string') {
-            if (rawText) logger.warn("Liste metni geçersiz.");
+            if (rawText) logger.warn("Liste metni geçersiz veya boş değil.");
             return new Set();
         }
         try {
@@ -224,30 +227,30 @@
         } catch (err) {
             logger.error("Liste çekme hatası:", err.message);
             if (force || filteredListSize === 0) {
-                showFeedback("Güncelleme Başarısız", `Liste alınamadı.\nHata: ${err.message}\nMevcut liste kullanılacak.`, { isError: true });
+                showFeedback("Güncelleme Başarısız", `Liste alınamadı.\nHata: ${err.message}\nMevcut liste (varsa) kullanılacak.`, { isError: true });
             }
             return false;
         }
 
         if (!force && config.listRaw === newRawText) {
-            logger.log("Liste değişmemiş.");
+            logger.log("Liste değişmemiş. Sadece zaman damgası güncelleniyor.");
             config.lastUpdate = Date.now();
             GM_setValue(KEY_LAST_UPDATE, config.lastUpdate).catch(e => logger.warn("Zaman damgası kaydı başarısız:", e));
             return false;
         }
 
-        logger.log(force ? "Zorunlu güncelleme/liste değişmiş, işleniyor." : "Liste değişmiş, güncelleniyor.");
+        logger.log(force ? "Zorunlu güncelleme veya liste değişmiş, işleniyor." : "Liste değişmiş, güncelleniyor.");
         let newListSet;
         try {
             newListSet = parseAuthorList(newRawText);
         } catch (err) {
-            logger.error("Liste işleme hatası (syncList):", err);
+            logger.error("Yeni liste işleme hatası (syncList):", err);
             return false;
         }
 
         if (filteredListSize > 0 && newListSet.size === 0 && newRawText.trim().length > 0) {
-            logger.warn("Yeni liste alındı ancak ayrıştırma boş! Eski liste korunuyor.");
-            showFeedback("Güncelleme Uyarısı", "Yeni liste boş sonuç verdi (format hatası?). Eski liste kullanılıyor.", { isError: true });
+            logger.warn("Yeni liste alındı ancak ayrıştırma boş sonuç verdi! Muhtemel format hatası. Eski liste korunuyor.");
+            showFeedback("Güncelleme Uyarısı", "Yeni liste boş sonuç verdi (format hatası olabilir). Eski liste kullanılıyor.", { isError: true });
             config.lastUpdate = Date.now();
             GM_setValue(KEY_LAST_UPDATE, config.lastUpdate).catch(e=>logger.warn("Zaman damgası kaydı (ayrıştırma hatası) başarısız:", e));
             return false;
@@ -258,17 +261,17 @@
         filteredListSize = filteredAuthorsSet.size;
         config.listRaw = newRawText;
         config.lastUpdate = Date.now();
-        logger.log(`Liste güncellendi. Eski: ${oldSize}, Yeni: ${filteredListSize}`);
+        logger.log(`Liste güncellendi. Eski boyut: ${oldSize}, Yeni boyut: ${filteredListSize}`);
 
         try {
             await Promise.all([
                 GM_setValue(KEY_LIST_RAW, config.listRaw),
                 GM_setValue(KEY_LAST_UPDATE, config.lastUpdate)
             ]);
-            logger.debug("Liste ve zaman damgası kaydedildi.");
+            logger.debug("Liste ve zaman damgası başarıyla kaydedildi.");
         } catch (err) {
             logger.error("Liste verileri kaydedilemedi:", err);
-            showFeedback("Depolama Hatası", "Liste güncellendi ancak kaydedilemedi.", { isError: true });
+            showFeedback("Depolama Hatası", "Liste güncellendi ancak yerel depolamaya kaydedilemedi.", { isError: true });
         }
         return true;
     };
@@ -278,7 +281,7 @@
         const displayAuthor = entry.dataset.author || author;
 
         if (entry.querySelector(`.${CSS_PREFIX}opened-warning`)) {
-            logger.debug(`Entry #${entryId} manuel açılmış, filtre uygulanmıyor.`);
+            logger.debug(`Entry #${entryId} manuel olarak açılmış, filtre uygulanmıyor.`);
             return false;
         }
 
@@ -298,7 +301,7 @@
 
         const contentEl = entry.querySelector(".content");
         if (!contentEl) {
-             logger.warn(`Daraltma: .content bulunamadı: Entry #${entryId}`);
+             logger.warn(`Daraltma: .content elementi bulunamadı: Entry #${entryId}`);
              return false;
         }
 
@@ -306,16 +309,17 @@
         if (!placeholder) {
             placeholder = document.createElement('div');
             placeholder.className = `${CSS_PREFIX}collapse-placeholder`;
+
             const strongAuthor = document.createElement('strong');
             strongAuthor.textContent = displayAuthor;
 
             const textSpan = document.createElement('span');
             textSpan.className = `${CSS_PREFIX}collapse-text`;
-            textSpan.textContent = 'Listeden: ';
+            textSpan.textContent = 'Bu yazarın içeriği filtrelendi: ';
             textSpan.appendChild(strongAuthor);
             textSpan.insertAdjacentText('beforeend', '.');
 
-            placeholder.innerHTML = `<span class="${CSS_PREFIX}collapse-icon" title="Yazar '${displayAuthor}' listede.">🚫</span>`;
+            placeholder.innerHTML = `<span class="${CSS_PREFIX}collapse-icon" title="Yazar '${displayAuthor}' filtre listesinde.">🚫</span>`;
             placeholder.appendChild(textSpan);
             placeholder.insertAdjacentHTML('beforeend', `<div class="${CSS_PREFIX}show-link"><a href="#" role="button">Göster</a></div>`);
 
@@ -323,9 +327,10 @@
             showLink?.addEventListener("click", (e) => {
                 e.preventDefault();
                 e.stopPropagation();
+
                 const currentEntry = e.target.closest('li[data-author]');
                 if (!currentEntry) {
-                    logger.warn("Genişletme: Üst entry bulunamadı.");
+                    logger.warn("Genişletme: Üst entry elementi bulunamadı.");
                     return;
                 }
                 const currentContent = currentEntry.querySelector(".content");
@@ -344,11 +349,11 @@
                     const warningSpan = document.createElement('span');
                     warningSpan.className = `${CSS_PREFIX}opened-warning`;
                     warningSpan.textContent = '⚠️ Filtre Açıldı';
-                    warningSpan.title = `'${currentAuthor}' içeriği daraltılmıştı.`;
+                    warningSpan.title = `'${currentAuthor}' yazarının bu içeriği normalde daraltılmıştı.`;
                     const footerInfo = footer.querySelector('.info .footer-info') || footer.querySelector('.entry-footer-bottom .footer-info') || footer.querySelector('.info') || footer;
                     footerInfo.appendChild(warningSpan);
                  } else if (!footer) {
-                     logger.warn(`Genişletilen entry #${currentId} footeri bulunamadı.`);
+                     logger.warn(`Genişletilen entry #${currentId} için footer bulunamadı.`);
                  }
             });
 
@@ -359,7 +364,7 @@
                  contentEl.parentNode.insertBefore(placeholder, contentEl.nextSibling);
             } else {
                  entry.appendChild(placeholder);
-                 logger.warn(`Entry #${entryId} footer/content bulunamadı, placeholder sona eklendi.`);
+                 logger.warn(`Entry #${entryId} için footer/content bulunamadı, placeholder sona eklendi.`);
             }
         } else {
              placeholder.style.display = 'flex';
@@ -370,7 +375,6 @@
         logger.debug(`Daraltıldı: Entry #${entryId} (Yazar: ${displayAuthor})`);
         return true;
     }
-
 
     function enhanceEntry(entry) {
         if (config.paused) return false;
@@ -385,7 +389,7 @@
         const entryId = entry.dataset.id || 'ID Yok';
 
         if (!authorLower) {
-            logger.warn(`Entry #${entryId} için yazar adı ('data-author') bulunamadı/boş.`);
+            logger.warn(`Entry #${entryId} için yazar adı ('data-author') bulunamadı veya boş.`);
             entry.dataset.eusfProcessed = 'skipped_empty_author';
             return false;
         }
@@ -399,7 +403,7 @@
             if (filteredAuthorsSet.has(authorLower)) {
                 if (!isFirstEntryOnPageProcessed && entry === firstEntryElement) {
                     firstEntryAuthorFilteredOnPage = true;
-                    logger.debug(`İlk entry listeye göre filtrelenecek: #${entryId} (Yazar: ${authorOriginal})`);
+                    logger.debug(`Sayfadaki ilk entry listeye göre filtrelenecek: #${entryId} (Yazar: ${authorOriginal})`);
                 }
 
                 if (applyFilterAction(entry, authorLower)) {
@@ -416,7 +420,7 @@
             }
 
         } catch (err) {
-            logger.error(`Entry #${entryId} işlenemedi (Yazar: ${authorOriginal}):`, err);
+            logger.error(`Entry #${entryId} (Yazar: ${authorOriginal}) işlenirken hata:`, err);
             entry.dataset.eusfAction = 'processing_error';
         } finally {
              if (!isFirstEntryOnPageProcessed && entry === firstEntryElement) {
@@ -431,7 +435,7 @@
         const currentTitleH1 = document.getElementById("title");
 
         if (!currentEntryListContainer || !currentTitleH1) {
-            logger.debug("Konu uyarısı: DOM elemanları bulunamadı.");
+            logger.debug("Konu uyarısı: Gerekli DOM elemanları (entry listesi veya başlık) bulunamadı.");
             return;
         }
 
@@ -451,19 +455,19 @@
                 topicWarningElement = document.createElement("span");
                 topicWarningElement.id = `${CSS_PREFIX}title-warning`;
                 topicWarningElement.className = `${CSS_PREFIX}topic-warning`;
-                topicWarningElement.textContent = "[Filtre Aktif]"; // Normalized text
+                topicWarningElement.textContent = "[Filtre Aktif]";
 
-                let titleText = `${filteredEntryCountOnPage} entry ${config.filterMode === 'hide' ? 'gizlendi' : 'daraltıldı'}.`;
+                let titleText = `${filteredEntryCountOnPage} entry bu başlıkta ${config.filterMode === 'hide' ? 'gizlendi' : 'daraltıldı'}.`;
                 if (firstEntryAuthorFilteredOnPage) {
-                    titleText += " İlk entry de filtrelendi.";
+                    titleText += " Sayfanın ilk entry'si de filtrelendi.";
                 }
                 topicWarningElement.title = titleText;
 
                 targetElement.insertAdjacentElement('beforeend', topicWarningElement);
-                logger.debug(`Konu başlığı uyarısı eklendi (${filteredEntryCountOnPage} filtrelendi, ilk: ${firstEntryAuthorFilteredOnPage}).`);
+                logger.debug(`Konu başlığı uyarısı eklendi (${filteredEntryCountOnPage} filtrelendi, ilk entry filtrelendi: ${firstEntryAuthorFilteredOnPage}).`);
             }
         } catch (err) {
-            logger.error("Konu başlığı uyarısı hatası:", err);
+            logger.error("Konu başlığı uyarısı eklenirken/güncellenirken hata:", err);
             topicWarningElement?.remove();
             topicWarningElement = null;
         }
@@ -471,26 +475,27 @@
 
     function addProfileWarning() {
         if (config.paused || !config.showWarning) {
-            logger.debug("Profil uyarısı atlandı.");
+            logger.debug("Profil uyarısı atlandı (script duraklatılmış veya uyarılar kapalı).");
             return;
         }
 
         const authorElement = document.querySelector('h1#user-profile-title');
         if (!authorElement) {
+            logger.debug("Profil uyarısı: Yazar başlığı elementi bulunamadı.");
             return;
         }
         logger.debug("Profil sayfası uyarısı kontrol ediliyor...");
 
         const authorName = authorElement.textContent?.trim();
         if (!authorName) {
-            logger.warn("Profil: Yazar adı alınamadı.");
+            logger.warn("Profil: Yazar adı alınamadı (başlık elementi boş).");
             return;
         }
 
         const authorLower = authorName.toLowerCase();
 
         if (filteredAuthorsSet.has(authorLower)) {
-            logger.log(`Profildeki yazar "${authorName}" listede.`);
+            logger.log(`Profildeki yazar "${authorName}" filtre listesinde.`);
 
             if (authorElement.querySelector(`.${CSS_PREFIX}profile-warning`)) {
                 logger.debug("Profil uyarısı zaten mevcut.");
@@ -500,31 +505,31 @@
             try {
                 const warningSpan = document.createElement('span');
                 warningSpan.className = `${CSS_PREFIX}profile-warning`;
-                warningSpan.textContent = "[Filtre Listesinde]"; // Normalized text
-                warningSpan.title = `Yazar (${authorName}) listede, içerikleri ${config.filterMode === 'hide' ? 'gizleniyor' : 'daraltılıyor'}.`;
+                warningSpan.textContent = "[Filtre Listesinde]";
+                warningSpan.title = `Bu yazar (${authorName}) filtre listesinde. İçerikleri ${config.filterMode === 'hide' ? 'gizleniyor' : 'daraltılıyor'}.`;
                 authorElement.appendChild(warningSpan);
-                logger.log(`Profil sayfasına "${authorName}" uyarısı eklendi.`);
+                logger.log(`Profil sayfasına "${authorName}" için uyarı eklendi.`);
             } catch (err) {
-                logger.error(`Profil uyarısı eklenirken hata (${authorName}):`, err);
+                logger.error(`Profil uyarısı eklenirken hata (Yazar: ${authorName}):`, err);
             }
         } else {
-            logger.debug(`Profildeki yazar "${authorName}" listede değil.`);
+            logger.debug(`Profildeki yazar "${authorName}" filtre listesinde değil.`);
         }
     }
 
     let intersectionObserver = null;
     function setupIntersectionObserver() {
         if (!entryListContainerEl) {
-             logger.warn("IO: #entry-item-list bulunamadı.");
+             logger.warn("IntersectionObserver: #entry-item-list bulunamadı. Kurulum atlandı.");
              return false;
         }
 
         try {
             intersectionObserver = new IntersectionObserver((entries, observer) => {
                 let processedCountInBatch = 0;
-                entries.forEach(entry => {
-                    if (entry.isIntersecting && entry.target.nodeType === Node.ELEMENT_NODE) {
-                        const targetLi = entry.target;
+                entries.forEach(intersectingEntry => {
+                    if (intersectingEntry.isIntersecting && intersectingEntry.target.nodeType === Node.ELEMENT_NODE) {
+                        const targetLi = intersectingEntry.target;
                         if (targetLi.matches('li[data-author]') && targetLi.dataset.eusfProcessed !== 'true') {
                              if (enhanceEntry(targetLi)) {
                                  processedCountInBatch++;
@@ -549,17 +554,17 @@
              });
 
             const initialEntries = entryListContainerEl.querySelectorAll(`li[data-author]:not([data-eusf-processed="true"])`);
-            logger.log(`IO: ${initialEntries.length} başlangıç entry'si hedefleniyor.`);
+            logger.log(`IntersectionObserver: ${initialEntries.length} başlangıç entry'si hedefleniyor.`);
             initialEntries.forEach(entry => {
                 entry.dataset.eusfObserved = 'true';
-                intersectionObserver.observe(entry)
+                intersectionObserver.observe(entry);
             });
 
             debouncedUpdateTopicWarning();
             return true;
 
         } catch (err) {
-            logger.error("IO kurulum hatası:", err);
+            logger.error("IntersectionObserver kurulum hatası:", err);
             intersectionObserver = null;
             return false;
         }
@@ -568,7 +573,7 @@
     let mutationObserver = null;
     function setupMutationObserver() {
         if (!entryListContainerEl || !intersectionObserver) {
-             logger.warn("MO: #entry-item-list veya IO eksik.");
+             logger.warn("MutationObserver: #entry-item-list veya IntersectionObserver eksik. Kurulum atlandı.");
              return false;
         }
 
@@ -582,8 +587,7 @@
                                 const entriesToAdd = [];
                                 if (node.matches('li[data-author]')) {
                                     entriesToAdd.push(node);
-                                }
-                                else {
+                                } else {
                                     entriesToAdd.push(...node.querySelectorAll('li[data-author]'));
                                 }
 
@@ -599,7 +603,7 @@
                     }
                 });
                 if (addedToIoCount > 0) {
-                    logger.debug(`MO: ${addedToIoCount} yeni entry IO'ya eklendi.`);
+                    logger.debug(`MutationObserver: ${addedToIoCount} yeni entry IntersectionObserver'a eklendi.`);
                 }
             });
 
@@ -607,11 +611,11 @@
                 childList: true,
                 subtree: true
             });
-            logger.log(`#entry-item-list izleniyor (MO aktif).`);
+            logger.log(`#entry-item-list dinamik değişiklikler için izleniyor (MutationObserver aktif).`);
             return true;
 
         } catch (err) {
-            logger.error("MO kurulum hatası:", err);
+            logger.error("MutationObserver kurulum hatası:", err);
             mutationObserver = null;
             return false;
         }
@@ -629,7 +633,7 @@
             addProfileWarning();
             logger.log("Profil sayfası işlendi.");
         } else if (entryListContainerEl) {
-            logger.log("Entry listesi sayfası.");
+            logger.log("Entry listesi içeren sayfa algılandı.");
             if (!config.paused) {
                  if (setupIntersectionObserver()) {
                      setupMutationObserver();
@@ -638,7 +642,7 @@
                 logger.log("Script duraklatılmış, Observer'lar kurulmadı.");
             }
         } else {
-             logger.log("Entry listesi/profil başlığı bulunamadı.");
+             logger.log("Bu sayfada bilinen bir entry listesi veya profil başlığı bulunamadı.");
         }
 
         if (!config.paused) {
@@ -647,7 +651,8 @@
             const needsUpdateCheck = filteredListSize === 0 || timeSinceUpdate > UPDATE_INTERVAL_MS;
 
             if (needsUpdateCheck) {
-                logger.log(`Liste ${filteredListSize === 0 ? 'boş/ilk' : 'güncel değil'} (${Math.round(timeSinceUpdate / (60*60*1000))} saat). Senkronizasyon deneniyor...`);
+                const reason = filteredListSize === 0 ? 'liste boş/ilk yükleme' : `güncel değil (${Math.round(timeSinceUpdate / (60*60*1000))} saat geçti)`;
+                logger.log(`Filtre listesi ${reason}. Arka planda senkronizasyon deneniyor...`);
                 syncList(filteredListSize === 0).then(updated => {
                     if (updated) {
                         logger.log("Arka plan liste güncellemesi tamamlandı. Yeni boyut: " + filteredListSize);
@@ -655,7 +660,7 @@
                            addProfileWarning();
                         }
                     } else {
-                        logger.log("Arka plan güncellemesi listeyi değiştirmedi/başarısız oldu.");
+                        logger.log("Arka plan güncellemesi listeyi değiştirmedi veya başarısız oldu.");
                     }
                 }).catch(err => {
                     logger.error("Arka plan senkronizasyonunda hata:", err);
@@ -665,12 +670,12 @@
             }
 
             if (filteredAuthorsSet.size === 0 && !needsUpdateCheck && config.listRaw && config.listRaw.trim().length > 0) {
-                logger.warn("Uyarı: Yerel liste var ama ayrıştırma boş!");
+                logger.warn("Uyarı: Yerel depoda liste metni var ancak ayrıştırılmış liste boş! Muhtemel bir sorun var.");
             } else if (filteredAuthorsSet.size === 0 && !config.listRaw) {
-                logger.warn("Uyarı: Filtre listesi boş!");
+                logger.warn("Uyarı: Filtre listesi tamamen boş. Güncelleme bekleniyor veya liste kaynağında sorun olabilir.");
             }
         } else {
-            logger.log("Filtre duraklatılmış, güncelleme atlandı.");
+            logger.log("Filtre duraklatılmış, otomatik liste güncellemesi atlandı.");
         }
 
         registerMenuCommands();
@@ -685,8 +690,8 @@
             try {
                 await GM_setValue(key, value);
                 config[key] = value;
-                showFeedback("Ayar Değişti", msg, { silent: true });
-                logger.log(`Ayar: ${key}=${value}. Yenileniyor...`);
+                showFeedback("Ayar Değiştirildi", msg, { silent: true });
+                logger.log(`Ayar değiştirildi: ${key}=${value}. Sayfa yenileniyor...`);
                 location.reload();
             } catch (err) {
                 logger.error(`Ayar (${key}) kaydedilemedi:`, err);
@@ -694,56 +699,57 @@
             }
         };
 
-        // Menu commands with normalized text
-        commandIds.push(GM_registerMenuCommand(`${config.paused ? "▶️ Aktif Et" : "⏸️ Durdur"}`, () => {
+        commandIds.push(GM_registerMenuCommand(`${config.paused ? "▶️ Filtreyi Aktif Et" : "⏸️ Filtreyi Durdur"}`, () => {
             const newState = !config.paused;
-            setConfigAndReload(KEY_PAUSED, newState, `Filtre ${newState ? 'durduruldu' : 'aktif edildi'}. Yenileniyor...`);
+            setConfigAndReload(KEY_PAUSED, newState, `Filtre ${newState ? 'durduruldu' : 'aktif edildi'}. Sayfa yenileniyor...`);
         }));
 
-        commandIds.push(GM_registerMenuCommand(`Mod: ${config.filterMode === 'hide' ? 'Gizle' : 'Daralt'} (Değiştir)`, () => {
+        commandIds.push(GM_registerMenuCommand(`Mod: ${config.filterMode === 'hide' ? 'Gizle' : 'Daralt'} (Değiştirmek için tıkla)`, () => {
             const newMode = config.filterMode === 'hide' ? 'collapse' : 'hide';
-            setConfigAndReload(KEY_MODE, newMode, `Mod "${newMode === 'hide' ? 'Gizle' : 'Daralt'}" yapıldı. Yenileniyor...`);
+            setConfigAndReload(KEY_MODE, newMode, `Filtre modu "${newMode === 'hide' ? 'Gizle' : 'Daralt'}" olarak ayarlandı. Sayfa yenileniyor...`);
         }));
 
-        commandIds.push(GM_registerMenuCommand(`Uyarılar: ${config.showWarning ? "🚫 Gizle" : "⚠️ Göster"}`, () => {
+        commandIds.push(GM_registerMenuCommand(`Uyarılar: ${config.showWarning ? "🚫 Uyarıları Gizle" : "⚠️ Uyarıları Göster"}`, () => {
             const newState = !config.showWarning;
-            setConfigAndReload(KEY_SHOW_WARNING, newState, `Uyarılar ${newState ? 'gösterilecek' : 'gizlenecek'}. Yenileniyor...`);
+            setConfigAndReload(KEY_SHOW_WARNING, newState, `Konu/profil uyarıları ${newState ? 'gösterilecek' : 'gizlenecek'}. Sayfa yenileniyor...`);
         }));
 
-        commandIds.push(GM_registerMenuCommand("🔄 Listeyi Şimdi Güncelle", async () => {
-            showFeedback("Güncelleme", "Liste alınıyor...", { silent: true });
-            logger.log("Manuel güncelleme başlatıldı...");
+        commandIds.push(GM_registerMenuCommand("🔄 Filtre Listesini Şimdi Güncelle", async () => {
+            showFeedback("Güncelleme Başlatıldı", "Filtre listesi sunucudan alınıyor...", { silent: true });
+            logger.log("Manuel liste güncellemesi başlatıldı...");
             try {
                 const updated = await syncList(true);
                 if (updated) {
-                    showFeedback("Güncelleme Başarılı", `Liste güncellendi (${filteredListSize} yazar). Yenileniyor...`);
+                    showFeedback("Güncelleme Başarılı", `Liste güncellendi (${filteredListSize} yazar). Değişikliklerin uygulanması için sayfa yenileniyor...`);
                     location.reload();
                 } else {
-                     logger.warn("Manuel güncelleme: Liste değişmedi/hata.");
-                     showFeedback("Güncelleme Sonucu", "Liste güncellenemedi/değişmedi. Konsolu kontrol edin.", { isError: (filteredListSize === 0 && !config.listRaw) });
+                     logger.warn("Manuel güncelleme: Liste değişmedi veya bir hata oluştu.");
+                     const isStillEmpty = filteredListSize === 0 && (!config.listRaw || config.listRaw.trim().length === 0);
+                     showFeedback("Güncelleme Sonucu", "Liste güncellenemedi veya mevcut listeyle aynı. Daha fazla bilgi için konsolu kontrol edin.", { isError: isStillEmpty });
                 }
             } catch (err) {
-                 logger.error("Manuel güncelleme hatası:", err);
-                 showFeedback("Güncelleme Hatası", `Hata: ${err.message}`, { isError: true });
+                 logger.error("Manuel liste güncellemesi sırasında kritik hata:", err);
+                 showFeedback("Güncelleme Hatası", `Liste güncellenirken bir hata oluştu: ${err.message}`, { isError: true });
             }
         }));
 
-        commandIds.push(GM_registerMenuCommand(`📊 İstatistikler`, async () => {
+        commandIds.push(GM_registerMenuCommand(`📊 Filtre İstatistikleri`, async () => {
             const total = await GM_getValue(KEY_TOTAL_FILTERED, config.totalFiltered);
+            config.totalFiltered = total;
+
             const lastUpdateDate = config.lastUpdate ? new Date(config.lastUpdate).toLocaleString("tr-TR") : "Hiç";
-            const statsText = `Toplam Filtrelenen: ${total}\n`
-                            + `Liste Boyutu: ${filteredListSize}\n`
-                            + `Son Güncelleme: ${lastUpdateDate}\n`
-                            + `Durum: ${config.paused ? 'Duraklatıldı' : 'Aktif'}\n`
-                            + `Mod: ${config.filterMode === 'hide' ? 'Gizle' : 'Daralt'}\n`
-                            + `Uyarılar: ${config.showWarning ? 'Açık' : 'Kapalı'}`;
+            const statsText = `Toplam Filtrelenen Entry: ${total}\n`
+                            + `Filtre Listesindeki Yazar Sayısı: ${filteredListSize}\n`
+                            + `Listenin Son Güncellenme Tarihi: ${lastUpdateDate}\n`
+                            + `Genel Durum: ${config.paused ? 'Duraklatıldı' : 'Aktif'}\n`
+                            + `Filtreleme Modu: ${config.filterMode === 'hide' ? 'Gizle' : 'Daralt'}\n`
+                            + `Konu/Profil Uyarıları: ${config.showWarning ? 'Açık' : 'Kapalı'}`;
             showFeedback("Filtre İstatistikleri", statsText);
         }));
 
-
         commandIds.push(GM_registerMenuCommand(`🗑️ Ayarları ve Önbelleği Sıfırla`, async () => {
-             if (confirm(`[${SCRIPT_NAME}] Emin misiniz?\n\nTüm ayarları ve yerel filtre listesi önbelleğini sıfırlayacak.\n\nSayfa yenilendikten sonra liste tekrar indirilecek.`)) {
-                 logger.warn("Kullanıcı sıfırlamayı onayladı.");
+             if (confirm(`[${SCRIPT_NAME}] Emin misiniz?\n\nBu işlem, script'in tüm ayarlarını ve yerel filtre listesi önbelleğini sıfırlayacaktır.\n\nSayfa yenilendikten sonra filtre listesi sunucudan tekrar indirilecektir.`)) {
+                 logger.warn("Kullanıcı ayarları ve önbelleği sıfırlamayı onayladı.");
                  try {
                      const keysToDelete = [
                          KEY_PAUSED, KEY_MODE, KEY_SHOW_WARNING, KEY_LIST_RAW,
@@ -753,7 +759,7 @@
 
                      results.forEach((result, index) => {
                          if (result.status === 'rejected') {
-                             logger.error(`'${keysToDelete[index]}' silinirken hata:`, result.reason);
+                             logger.error(`'${keysToDelete[index]}' anahtarı silinirken hata:`, result.reason);
                          }
                      });
 
@@ -761,29 +767,29 @@
                      filteredListSize = 0;
                      config = { paused: false, filterMode: 'collapse', showWarning: true, listRaw: '', lastUpdate: 0, totalFiltered: 0 };
 
-                     showFeedback("Sıfırlandı", "Ayarlar ve önbellek temizlendi. Yenileniyor...");
+                     showFeedback("Sıfırlandı", "Tüm ayarlar ve önbellek başarıyla temizlendi. Sayfa yenileniyor...");
                      location.reload();
                  } catch (err) {
-                      logger.error("Sıfırlama hatası:", err);
-                      showFeedback("Sıfırlama Hatası", `Hata: ${err.message}`, { isError: true });
+                      logger.error("Ayarları sıfırlama sırasında kritik hata:", err);
+                      showFeedback("Sıfırlama Hatası", `Ayarlar sıfırlanırken bir hata oluştu: ${err.message}`, { isError: true });
                  }
              } else {
-                 logger.log("Kullanıcı sıfırlamayı iptal etti.");
-                 showFeedback("İptal Edildi", "Sıfırlama iptal edildi.", { silent: true });
+                 logger.log("Kullanıcı ayarları sıfırlama işlemini iptal etti.");
+                 showFeedback("İptal Edildi", "Sıfırlama işlemi iptal edildi.", { silent: true });
              }
         }));
 
-        logger.debug(`${commandIds.length} menü komutu kaydedildi.`);
+        logger.debug(`${commandIds.length} menü komutu başarıyla kaydedildi.`);
     }
 
     try {
          initialize().catch(err => {
-            logger.error("Başlatma hatası (initialize promise):", err);
-            showFeedback("Başlatma Başarısız", `Hata:\n${err.message}\nScript çalışmayabilir.`, { isError: true });
+            logger.error("Başlatma sırasında yakalanan asenkron hata (initialize promise):", err);
+            showFeedback("Kritik Başlatma Hatası", `Script başlatılırken bir sorun oluştu:\n${err.message}\nScript düzgün çalışmayabilir. Konsolu kontrol edin.`, { isError: true });
         });
     } catch (err) {
-        logger.error("Başlatma senkron hatası:", err);
-        showFeedback("Başlatma Hatası", `Senkron hata:\n${err.message}\nScript çalışamayabilir.`, { isError: true });
+        logger.error("Başlatma sırasında yakalanan senkron hata:", err);
+        showFeedback("Kritik Başlatma Hatası", `Script başlatılırken ciddi bir senkron hata oluştu:\n${err.message}\nScript çalışamayabilir. Konsolu kontrol edin.`, { isError: true });
     }
 
 })();
